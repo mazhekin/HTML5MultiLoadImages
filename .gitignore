@@ -20,8 +20,3 @@ build
 * Thumbs.db
 *.bin
 Autotest.config
-
-#nuget package
-*.nupkg
-#Nuget/input/lib
-lib
