@@ -4,20 +4,31 @@
 
  
 @section scripts {
+    @Scripts.Render("~/bundles/knockout")
     <script src="/scripts/file.uploader.js" type="text/javascript"></script>
 }
 
 <h2>Multiple load file</h2>
 
 <div>
-    <a href="javascript:void(0)">Выберите файы</a>
-
-    <div style ="background-color: red; overflow:hidden; width: 132px; height: 32px; position: absolute; left: 200px; top: 200px;">
+    <div style ="background-color: red; overflow:hidden; width: 132px; height: 32px; position: relative; left: 0px; top: 0px;">
         <input 
             style ="opacity:0; font-size: 32px; height: 32px; position:absolute; right: 0px; left: 0px;" 
-            tabindex ="0" type="file" name="file" id="file-field" multiple="true" title ="Выберите фотографии" />
+            tabindex ="0" type="file" name="file" id="file-field" multiple="true" title ="Выберите фотографии" 
+            data-bind="event:{change:filesChanged}" />
     </div>
 </div>
+
+<ul data-bind ="foreach: savedFiles">
+    <li>
+        <div data-bind="text:name"></div>
+        <img data-bind="imgScr: $data" />
+        <div>0%</div>
+    </li>
+</ul>
+
 <div id="img-container">
-    <ul id="img-list"></ul>
+    <ul id="img-list">
+
+    </ul>
 </div>

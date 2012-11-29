@@ -1,4 +1,60 @@
-﻿$(function () {
+﻿
+(function (jQuery) {
+
+    $(function () {
+
+        var my = my || {};
+
+        ko.bindingHandlers.imgScr = {
+            init: function (elem, valueAccessor) {
+                var img = $(elem);
+                var file = valueAccessor();
+
+                // Create object FileReader and after reading the file do display the icon
+                var reader = new FileReader();
+                reader.onload = (function (aImg) {
+                    return function (e) {
+                        aImg.attr('src', e.target.result);
+                        aImg.attr('width', 150);
+                    };
+                })(img);
+
+                reader.readAsDataURL(file);
+            }
+        };
+
+        my.vm = (function () {
+            var savedFiles = ko.observableArray(),
+                filesChanged = function (data, event) {
+                    var self = this;
+                    $.each(event.srcElement.files, function (i, file) {
+                        if (!file.type.match(/image.*/)) {
+                            // remove non images
+                            return true;
+                        }
+                        self.savedFiles.push(file);
+                    });
+                },
+                uploadFile = function (file, url) {
+                    var reader = new FileReader();
+                    reader.onload = function() {
+                    };
+                    reader.readAsBinaryString(file);
+                };
+            
+            return {
+                savedFiles: savedFiles,
+                filesChanged: filesChanged
+            }
+        })();
+
+        my.vm.savedFiles.subscribe(function (newValue) {
+            
+        });
+
+        ko.applyBindings(my.vm);
+
+
     var fileInput = $('#file-field');
     var imgList = $('ul#img-list');
     var dropBox = $('#img-container');
@@ -58,4 +114,8 @@
         });
     }
 
-});
+    });
+
+
+})(jQuery);
+
