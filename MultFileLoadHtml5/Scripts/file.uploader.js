@@ -6,113 +6,113 @@
         var my = my || {};
 
         ko.bindingHandlers.imgScr = {
-            init: function (elem, valueAccessor) {
-                var img = $(elem);
+            init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+                var img = $(element);
                 var file = valueAccessor();
+                var model = bindingContext.$root;
 
-                // Create object FileReader and after reading the file do display the icon
+                // Upload here file to server and the display it
                 var reader = new FileReader();
-                reader.onload = (function (aImg) {
-                    return function (e) {
-                        aImg.attr('src', e.target.result);
-                        aImg.attr('width', 150);
-                    };
-                })(img);
-
-                reader.readAsDataURL(file);
+                reader.onloadend = function () {
+                    model.uploadFile(file, "/Home/Upload/", reader);
+                };
+                reader.readAsBinaryString(file);
             }
         };
 
         my.vm = (function () {
-            var savedFiles = ko.observableArray(),
+            var filesToSave = [],
+                savedFiles = ko.observableArray(),
                 filesChanged = function (data, event) {
                     var self = this;
                     $.each(event.srcElement.files, function (i, file) {
                         if (!file.type.match(/image.*/)) {
-                            // remove non images
                             return true;
                         }
-                        self.savedFiles.push(file);
+                        filesToSave.push(file);
                     });
+                    if (filesToSave.length > 0) {
+                        self.savedFiles.unshift(filesToSave.shift());
+                    }
                 },
-                uploadFile = function (file, url) {
-                    var reader = new FileReader();
-                    reader.onload = function() {
+                uploadFile = function (file, url, reader) {
+                    var self = this,
+                        xhr = new XMLHttpRequest(),
+                        boundary = '------multipartformboundary' + (new Date).getTime();
+
+                    xhr.open("POST", url, true);
+                    xhr.setRequestHeader('content-type', 'multipart/form-data; boundary=' + boundary);
+                    xhr.setRequestHeader("content-length", file.size);
+                    xhr.setRequestHeader("cache-control", "no-cache");
+
+                    xhr.onreadystatechange = function () {
+                        if (this.readyState == 4) {
+                            if (this.status == 200) {
+                                onsuccess();
+                            } else {
+                                onerror();
+                            }
+                            // uploaded or not previous, but need to upload next image
+                            if (filesToSave.length > 0) {
+                                self.savedFiles.unshift(filesToSave.shift());
+                            }
+                        }
                     };
-                    reader.readAsBinaryString(file);
+
+                    var body = getBody(file.name, reader.result, boundary);
+
+                    try {
+                        if (xhr.sendAsBinary) {
+                            // firefox
+                            xhr.sendAsBinary(body);
+                        } else {
+                            // chrome (according W3C specification)
+                            function byteValue(x) {
+                                return x.charCodeAt(0) & 0xff;
+                            }
+                            var ords = Array.prototype.map.call(body, byteValue);
+                            var ui8a = new Uint8Array(ords);
+                            xhr.send(ui8a.buffer);
+                        }
+                    } catch (e) { }
+                },
+                getBody = function (filename, filedata, boundary) {
+                    var dashdash = '--',
+                        crlf = '\r\n',
+                        body = '';
+
+                    body += dashdash;
+                    body += boundary;
+                    body += crlf;
+                    body += 'Content-Disposition: form-data; name="pic"; filename="' + filename + '"';
+                    body += crlf;
+
+                    body += 'Content-Type: application/octet-stream';
+                    body += crlf;
+                    body += crlf;
+
+                    body += filedata;
+                    body += crlf;
+
+                    body += dashdash;
+                    body += boundary;
+                    body += dashdash;
+                    body += crlf;
+                    return body;
+                },
+                onsuccess = function () {
+                },
+                onerror = function () {
+                    alert('error');
                 };
-            
             return {
                 savedFiles: savedFiles,
-                filesChanged: filesChanged
+                filesChanged: filesChanged,
+                uploadFile: uploadFile
             }
         })();
 
-        my.vm.savedFiles.subscribe(function (newValue) {
-            
-        });
-
         ko.applyBindings(my.vm);
-
-
-    var fileInput = $('#file-field');
-    var imgList = $('ul#img-list');
-    var dropBox = $('#img-container');
-
-    fileInput.bind({
-        change: function () {
-            displayFiles(this.files);
-        }
-    });
-
-    // drag and drop events while moving files to element dropBox
-    dropBox.bind({
-        dragenter: function () {
-            $(this).addClass('highlighted');
-            return false;
-        },
-        dragover: function () {
-            return false;
-        },
-        dragleave: function () {
-            $(this).removeClass('highlighted');
-            return false;
-        },
-        drop: function (e) {
-            var dt = e.originalEvent.dataTransfer;
-            displayFiles(dt.files);
-            return false;
-        }
-    });
-
-    function displayFiles(files) {
-        $.each(files, function (i, file) {
-            if (!file.type.match(/image.*/)) {
-                // Отсеиваем не картинки
-                return true;
-            }
-            // Создаем элемент li и помещаем в него название, миниатюру и progress bar,
-            // а также создаем ему свойство file, куда помещаем объект File (при загрузке понадобится)
-            var li = $('<li/>').appendTo(imgList);
-            $('<div/>').text(file.name).appendTo(li);
-            var img = $('<img/>').appendTo(li);
-            $('<div/>').addClass('progress').text('0%').appendTo(li);
-            li.get(0).file = file;
-
-            // Создаем объект FileReader и по завершении чтения файла, отображаем миниатюру и обновляем
-            // инфу обо всех файлах
-            var reader = new FileReader();
-            reader.onload = (function (aImg) {
-                return function (e) {
-                    aImg.attr('src', e.target.result);
-                    aImg.attr('width', 150);
-                    /* ... обновляем инфу о выбранных файлах ... */
-                };
-            })(img);
-
-            reader.readAsDataURL(file);
-        });
-    }
 
     });
 
