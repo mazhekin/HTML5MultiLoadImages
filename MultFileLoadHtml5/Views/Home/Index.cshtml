@@ -4,7 +4,9 @@
     ViewBag.Title = "Index";
 }
 
- 
+<style>
+    ul li { display: inline; list-style: none; float: left; margin-left: 10px; margin-bottom: 5px; border: 1px solid black; height: 100px; }
+</style>
 
 @section scripts {
     @Scripts.Render("~/bundles/knockout")
@@ -25,18 +27,14 @@
 <ul>
     <!-- ko foreach: savedFiles -->
     <li>
-        <div data-bind="text:name"></div>
         <img data-bind="imgScr: $data" />
-        <div>0%</div>
     </li>
     <!-- /ko -->
     
     @foreach (var fileName in Model)
     {
     <li>
-        <div>@fileName</div>
         <img src="/home/icon/@(fileName)" alt ="@fileName" />
-        <div>100%</div>
     </li>
     }
 

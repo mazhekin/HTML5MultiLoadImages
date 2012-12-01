@@ -36,7 +36,7 @@ namespace MultFileLoadHtml5.Controllers
             {
                 using (var output = new System.IO.MemoryStream())
                 {
-                    FileService.GenerateThumbnail(fileStream, output, width: 200, height: 150);
+                    FileService.AdjustImageToHeight(fileStream, output, 100);
                     this.Response.ContentType = "image/jpeg";
                     this.Response.AddHeader("Content-Length", output.Length.ToString());
                     this.Response.Cache.SetExpires(DateTime.Now/*.AddDays(30)*/);
@@ -66,7 +66,7 @@ namespace MultFileLoadHtml5.Controllers
                 FileService.CopyStream(stream, fileStream);
             }
 
-            return Json(new { result = "success" });
+            return Json(new { result = "success", file = file.FileName });
         }
     }
 
@@ -164,6 +164,177 @@ namespace MultFileLoadHtml5.Controllers
             {
                 output.Write(buffer, 0, len);
             }
+        }
+
+        public static void AdjustImage2(System.IO.Stream input, System.IO.Stream output, int maxWidth, int maxHeight)
+        {
+            input.Position = 0;
+            output.Position = 0;
+
+            using (var image = new Bitmap(input))
+            {
+                var originalSize = new Size(image.Width, image.Height);
+                Size newSize;
+                FileService.GetAdjustImageRectangle2(originalSize, maxWidth, maxHeight, out newSize);
+
+                using (var newImage = new Bitmap(newSize.Width, newSize.Height))
+                using (var graphics = Graphics.FromImage(newImage))
+                {
+                    graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    graphics.DrawImage(image, new RectangleF(new Point(0, 0), newSize), new RectangleF(new Point(0, 0), originalSize), GraphicsUnit.Pixel);
+
+                    newImage.Save(output, ImageFormat.Jpeg);
+                    output.Position = 0;
+                }
+            }
+        }
+
+        public static void AdjustImage(System.IO.Stream input, System.IO.Stream output, int minWidth, int maxWidth)
+        {
+            input.Position = 0;
+            output.Position = 0;
+
+            using (var image = new Bitmap(input))
+            {
+                var originalSize = new Size(image.Width, image.Height);
+                Size newSize;
+                var rect = FileService.GetAdjustImageRectangle(originalSize, minWidth, maxWidth, out newSize);
+
+                using (var newImage = new Bitmap(newSize.Width, newSize.Height))
+                using (var graphics = Graphics.FromImage(newImage))
+                {
+                    // var parameters = new EncoderParameters(1);
+                    // parameters.Param[0] = new EncoderParameter(System.Drawing.Imaging.Encoder.Quality, 100);
+                    graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    graphics.DrawImage(image, new RectangleF(new Point(0, 0), newSize), rect, GraphicsUnit.Pixel);
+
+                    // newImage.Save(output, ImageCodecInfo.GetImageEncoders().FirstOrDefault(x => x.MimeType == "image/png"), parameters);
+                    newImage.Save(output, ImageFormat.Jpeg);
+                    output.Position = 0;
+                }
+            }
+        }
+
+        public static void AdjustImageToHeight(System.IO.Stream input, System.IO.Stream output, int toHeight)
+        {
+            input.Position = 0;
+            output.Position = 0;
+
+            using (var image = new Bitmap(input))
+            {
+                var originalSize = new Size(image.Width, image.Height);
+                Size newSize;
+                FileService.GetAdjustImageRectangleToHeight(originalSize, toHeight, out newSize);
+
+                using (var newImage = new Bitmap(newSize.Width, newSize.Height))
+                using (var graphics = Graphics.FromImage(newImage))
+                {
+                    graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                    graphics.DrawImage(image, new RectangleF(new Point(0, 0), newSize), new RectangleF(new Point(0, 0), originalSize), GraphicsUnit.Pixel);
+
+                    newImage.Save(output, ImageFormat.Jpeg);
+                    output.Position = 0;
+                }
+            }
+        }
+
+        public static void GetAdjustImageRectangleToHeight(Size originalSize, int toHeight, out Size newSize)
+        {
+            // Basic validation
+            if (originalSize.Width <= 0 || originalSize.Height <= 0)
+            {
+                throw new ArgumentException(string.Format("You must provide valid dimensions for an original image. OroginalWidth: {0}, OriginalHeight: {1}", originalSize.Width, originalSize.Height));
+            }
+            if (toHeight <= 0)
+            {
+                throw new ArgumentException(string.Format("You must provide valid height for a new image. toHeight: {1}", toHeight));
+            }
+
+            newSize = originalSize;
+            var yRatio = (float)toHeight / (float)originalSize.Height;
+
+            newSize.Height = toHeight;
+            newSize.Width = (int)Math.Round(newSize.Width * yRatio);
+        }
+
+        public static void GetAdjustImageRectangle2(Size originalSize, int maxWidth, int maxHeight, out Size newSize)
+        {
+            // Basic validation
+            if (originalSize.Width <= 0 || originalSize.Height <= 0)
+            {
+                throw new ArgumentException(string.Format("You must provide valid dimensions for an original image. OroginalWidth: {0}, OriginalHeight: {1}", originalSize.Width, originalSize.Height));
+            }
+
+            if (maxWidth <= 0 || maxHeight <= 0)
+            {
+                throw new ArgumentException(string.Format("You must provide valid dimensions for a new image. minWidth: {0}, maxWidth: {1}", maxWidth, maxHeight));
+            }
+
+            newSize = originalSize;
+            var xRatio = (float)maxWidth / (float)originalSize.Width;
+            var yRatio = (float)maxHeight / (float)originalSize.Height;
+
+            if (xRatio < 1 && yRatio < 1)
+            {
+                if (xRatio < yRatio)
+                {
+                    newSize.Width = maxWidth;
+                    newSize.Height = (int)Math.Round(newSize.Height * xRatio);
+                    return;
+                }
+                else
+                {
+                    newSize.Height = maxHeight;
+                    newSize.Width = (int)Math.Round(newSize.Width * yRatio);
+                    return;
+                }
+            }
+
+            if (xRatio < 1)
+            {
+                newSize.Width = maxWidth;
+                newSize.Height = (int)Math.Round(newSize.Height * xRatio);
+                return;
+            }
+
+            if (yRatio < 1)
+            {
+                newSize.Height = maxHeight;
+                newSize.Width = (int)Math.Round(newSize.Width * yRatio);
+                return;
+            }
+        }
+
+        public static RectangleF GetAdjustImageRectangle(Size originalSize, int minWidth, int maxWidth, out Size newSize)
+        {
+            // Basic validation
+            if (originalSize.Width <= 0 || originalSize.Height <= 0)
+            {
+                throw new ArgumentException(string.Format("You must provide valid dimensions for an original image. OroginalWidth: {0}, OriginalHeight: {1}", originalSize.Width, originalSize.Height));
+            }
+
+            if (minWidth <= 0 || maxWidth <= 0 || maxWidth <= minWidth)
+            {
+                throw new ArgumentException(string.Format("You must provide valid dimensions for a new image. minWidth: {0}, maxWidth: {1}", minWidth, maxWidth));
+            }
+
+            newSize = originalSize;
+
+            if (originalSize.Width < minWidth)
+            {
+                newSize.Width = minWidth;
+                newSize.Height = 0;
+                return FileService.GetThumbnailRectangle(originalSize, ref newSize);
+            }
+
+            if (originalSize.Width > maxWidth)
+            {
+                newSize.Width = maxWidth;
+                newSize.Height = 0;
+                return FileService.GetThumbnailRectangle(originalSize, ref newSize);
+            }
+
+            return new RectangleF(new Point(0, 0), originalSize);
         }
 
     }

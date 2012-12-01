@@ -14,7 +14,7 @@
                 // Upload here file to server and the display it
                 var reader = new FileReader();
                 reader.onloadend = function () {
-                    model.uploadFile(file, "/Home/Upload/", reader);
+                    model.uploadFile(file, "/Home/Upload/", reader, img);
                 };
                 reader.readAsBinaryString(file);
             }
@@ -35,7 +35,7 @@
                         self.savedFiles.unshift(filesToSave.shift());
                     }
                 },
-                uploadFile = function (file, url, reader) {
+                uploadFile = function (file, url, reader, img) {
                     var self = this,
                         xhr = new XMLHttpRequest(),
                         boundary = '------multipartformboundary' + (new Date).getTime();
@@ -48,7 +48,7 @@
                     xhr.onreadystatechange = function () {
                         if (this.readyState == 4) {
                             if (this.status == 200) {
-                                onsuccess();
+                                onsuccess(img, jQuery.parseJSON(this.response));
                             } else {
                                 onerror();
                             }
@@ -100,7 +100,8 @@
                     body += crlf;
                     return body;
                 },
-                onsuccess = function () {
+                onsuccess = function (img, response) {
+                    $(img).attr('src', '/home/icon/' + response.file);
                 },
                 onerror = function () {
                     alert('error');
